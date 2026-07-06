@@ -3,3 +3,6 @@ navigation_histories/
 
 # Maps real filenames (participant names) to anonymised IDs
 participant_map.json
+
+# Rendered per-participant Markdown histories (derived from private data)
+output/markdown/
