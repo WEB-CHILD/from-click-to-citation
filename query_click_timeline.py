@@ -9,12 +9,13 @@ connected by a line so you can read the back-and-forth between searching,
 clicking results, and following playback links. Dots are coloured by action
 type.
 
-Output: output/query_click_timeline.{pdf,png,svg}
+Output: one file per participant in output/query_click_timeline/ (e.g.
+output/query_click_timeline/P01.{pdf,png,svg}).
 
 Usage:
     python3 query_click_timeline.py
     python3 query_click_timeline.py path/to/folder
-    python3 query_click_timeline.py --ncols 3 --out figures/timeline
+    python3 query_click_timeline.py --out-dir figures/timeline
 """
 
 import argparse
@@ -81,11 +82,47 @@ def click_based(sequences):
     return sorted(selected)
 
 
+def _draw_panel(ax, sequences, pid):
+    """Draw one participant's action timeline onto ``ax``."""
+    # Keep the three action types, in chronological order.
+    events = [(num, act) for num, act in sequences[pid] if act in LEVEL]
+    xs = [num for num, _ in events]
+    ys = [LEVEL[act] for _, act in events]
+
+    ax.plot(xs, ys, color="0.7", lw=0.8, zorder=1)
+    for action, color in ((QUERY, COLOR_QUERY), (CLICK, COLOR_CLICK),
+                          (PLAYBACK, COLOR_PLAYBACK)):
+        level = LEVEL[action]
+        xa = [x for x, y in zip(xs, ys) if y == level]
+        ax.scatter(xa, [level] * len(xa), s=22, color=color, zorder=2)
+
+    ax.set_yticks([0, 1, 2])
+    ax.set_yticklabels(["playback\nclick", "result\nclick", "query"],
+                       fontsize=8)
+    ax.set_ylim(-0.6, 2.6)
+    ax.set_title(pid, fontsize=10, loc="left", fontweight="bold")
+    ax.tick_params(axis="x", labelsize=8)
+    ax.set_xlabel("entry number", fontsize=8)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+
+
+def _legend_handles():
+    from matplotlib.lines import Line2D
+    return [
+        Line2D([0], [0], marker="o", linestyle="", color=COLOR_QUERY,
+               label="query", markersize=7),
+        Line2D([0], [0], marker="o", linestyle="", color=COLOR_CLICK,
+               label="search result clicked", markersize=7),
+        Line2D([0], [0], marker="o", linestyle="", color=COLOR_PLAYBACK,
+               label="playback link clicked", markersize=7),
+    ]
+
+
 def plot(sequences, participants, out_base, formats, dpi, ncols, title):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from matplotlib.lines import Line2D
 
     n = len(participants)
     ncols = max(1, min(ncols, n))
@@ -95,42 +132,13 @@ def plot(sequences, participants, out_base, formats, dpi, ncols, title):
                              squeeze=False)
 
     for idx, pid in enumerate(participants):
-        ax = axes[idx // ncols][idx % ncols]
-        # Keep the three action types, in chronological order.
-        events = [(num, act) for num, act in sequences[pid] if act in LEVEL]
-        xs = [num for num, _ in events]
-        ys = [LEVEL[act] for _, act in events]
-
-        ax.plot(xs, ys, color="0.7", lw=0.8, zorder=1)
-        for action, color in ((QUERY, COLOR_QUERY), (CLICK, COLOR_CLICK),
-                              (PLAYBACK, COLOR_PLAYBACK)):
-            level = LEVEL[action]
-            xa = [x for x, y in zip(xs, ys) if y == level]
-            ax.scatter(xa, [level] * len(xa), s=22, color=color, zorder=2)
-
-        ax.set_yticks([0, 1, 2])
-        ax.set_yticklabels(["playback\nclick", "result\nclick", "query"],
-                           fontsize=8)
-        ax.set_ylim(-0.6, 2.6)
-        ax.set_title(pid, fontsize=10, loc="left", fontweight="bold")
-        ax.tick_params(axis="x", labelsize=8)
-        ax.set_xlabel("entry number", fontsize=8)
-        for spine in ("top", "right"):
-            ax.spines[spine].set_visible(False)
+        _draw_panel(axes[idx // ncols][idx % ncols], sequences, pid)
 
     # Blank out any unused panels in the grid.
     for idx in range(n, nrows * ncols):
         axes[idx // ncols][idx % ncols].axis("off")
 
-    legend = [
-        Line2D([0], [0], marker="o", linestyle="", color=COLOR_QUERY,
-               label="query", markersize=7),
-        Line2D([0], [0], marker="o", linestyle="", color=COLOR_CLICK,
-               label="search result clicked", markersize=7),
-        Line2D([0], [0], marker="o", linestyle="", color=COLOR_PLAYBACK,
-               label="playback link clicked", markersize=7),
-    ]
-    fig.legend(handles=legend, loc="upper center", ncol=3,
+    fig.legend(handles=_legend_handles(), loc="upper center", ncol=3,
                frameon=False, fontsize=9, bbox_to_anchor=(0.5, 1.0))
     fig.suptitle(title, fontsize=11, y=1.02)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
@@ -147,16 +155,44 @@ def plot(sequences, participants, out_base, formats, dpi, ncols, title):
     return written
 
 
+def plot_individual(sequences, participants, out_dir, formats, dpi, title):
+    """Write one figure file per participant into ``out_dir``.
+
+    Each participant ``pid`` produces ``out_dir/{pid}.{fmt}`` for every format.
+    Returns the list of written paths.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    os.makedirs(out_dir, exist_ok=True)
+    written = []
+    for pid in participants:
+        fig, ax = plt.subplots(figsize=(6.0, 1.9))
+        _draw_panel(ax, sequences, pid)
+
+        fig.legend(handles=_legend_handles(), loc="upper center", ncol=3,
+                   frameon=False, fontsize=8, bbox_to_anchor=(0.5, 1.0))
+        fig.suptitle(title, fontsize=10, y=1.06)
+        fig.tight_layout(rect=(0, 0, 1, 0.95))
+
+        for fmt in formats:
+            path = os.path.join(out_dir, f"{pid}.{fmt}")
+            fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
+            written.append(path)
+        plt.close(fig)
+    return written
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", nargs="?", default="navigation_histories")
-    ap.add_argument("--out", default="output/query_click_timeline",
-                    help="image basename (default: output/query_click_timeline)")
+    ap.add_argument("--out-dir", default="output/query_click_timeline",
+                    help="folder for per-participant files "
+                         "(default: output/query_click_timeline)")
     ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"])
     ap.add_argument("--dpi", type=int, default=300)
-    ap.add_argument("--ncols", type=int, default=2,
-                    help="number of panel columns (default: 2)")
     args = ap.parse_args()
 
     sequences = gather_sequences(args.folder)
@@ -168,9 +204,9 @@ def main():
 
     title = ("Query-based group: chronological query ↔ result-click "
              "↔ playback sequence")
-    written = plot(sequences, participants, args.out, args.formats,
-                   args.dpi, args.ncols, title)
-    print("Wrote: " + ", ".join(written))
+    written = plot_individual(sequences, participants, args.out_dir,
+                              args.formats, args.dpi, title)
+    print(f"Wrote {len(written)} files to {args.out_dir}/")
 
 
 if __name__ == "__main__":
