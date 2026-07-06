@@ -1,0 +1,5 @@
+# Raw participant navigation histories (contain real names / private data)
+navigation_histories/
+
+# Maps real filenames (participant names) to anonymised IDs
+participant_map.json
