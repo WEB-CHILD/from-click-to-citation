@@ -6,3 +6,4 @@ participant_map.json
 
 # Rendered per-participant Markdown histories (derived from private data)
 output/markdown/
+output/repeat_runs/
