@@ -10,7 +10,7 @@ clicking results, and following playback links. Dots are coloured by action
 type.
 
 Output: one file per participant in output/query_click_timeline/ (e.g.
-output/query_click_timeline/P01.{pdf,png,svg}).
+output/query_click_timeline/P01.png).
 
 Usage:
     python3 query_click_timeline.py
@@ -191,7 +191,7 @@ def main():
     ap.add_argument("--out-dir", default="output/query_click_timeline",
                     help="folder for per-participant files "
                          "(default: output/query_click_timeline)")
-    ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"])
+    ap.add_argument("--formats", nargs="+", default=["png"])
     ap.add_argument("--dpi", type=int, default=300)
     args = ap.parse_args()
 

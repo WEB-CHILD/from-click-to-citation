@@ -3,14 +3,13 @@
 
 Reuses the numbers computed by file_summary.compute_table() and draws a clean,
 journal-style table (booktabs-like horizontal rules, no vertical lines) using
-matplotlib. Saves to vector PDF/SVG (best for LaTeX/Word — scales without
-pixelation) and a high-DPI PNG.
+matplotlib. Saves a high-DPI PNG (pass --formats for vector PDF/SVG instead).
 
 Usage:
-    python3 render_table.py                         # -> output/table.{pdf,png,svg}
+    python3 render_table.py                         # -> output/table.png
     python3 render_table.py navigation_histories    # explicit folder
     python3 render_table.py --out figures/summary   # custom basename/folder
-    python3 render_table.py --formats pdf png        # choose output formats
+    python3 render_table.py --formats pdf png svg    # choose output formats
 
 Requires matplotlib:  pip install matplotlib
 """
@@ -107,8 +106,8 @@ def main():
     ap.add_argument("--out", default="output/table",
                     help="output basename without extension "
                          "(default: output/table)")
-    ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"],
-                    help="output formats (default: pdf png svg)")
+    ap.add_argument("--formats", nargs="+", default=["png"],
+                    help="output formats (default: png)")
     ap.add_argument("--dpi", type=int, default=300,
                     help="raster DPI for PNG (default: 300)")
     args = ap.parse_args()

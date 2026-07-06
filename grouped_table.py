@@ -217,8 +217,8 @@ def main():
     ap.add_argument("--out", default="output/grouped_table",
                     help="image basename without extension "
                          "(default: output/grouped_table)")
-    ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"],
-                    help="image formats (default: pdf png svg)")
+    ap.add_argument("--formats", nargs="+", default=["png"],
+                    help="image formats (default: png)")
     ap.add_argument("--dpi", type=int, default=300, help="PNG DPI (default: 300)")
     ap.add_argument("--no-image", action="store_true",
                     help="print the text table only, skip the image")

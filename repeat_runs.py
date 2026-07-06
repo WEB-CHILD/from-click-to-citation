@@ -10,12 +10,12 @@ its filters for a ``query``.
 
 It renders booktabs-style table images into output/repeat_runs/: one table per
 participant listing their runs of length >= --min-run (longest first), plus a
-``summary`` table of everyone's longest run. Each is saved as PDF/PNG/SVG. Files
-are anonymised through participant_map.json (the same P01, P02, ... ids the
-other scripts use).
+``summary`` table of everyone's longest run. Each is saved as a PNG (pass
+--formats for vector PDF/SVG instead). Files are anonymised through
+participant_map.json (the same P01, P02, ... ids the other scripts use).
 
-Output: output/repeat_runs/{P01,...}.{pdf,png,svg} and
-        output/repeat_runs/summary.{pdf,png,svg}
+Output: output/repeat_runs/{P01,...}.png and
+        output/repeat_runs/summary.png
 
 Usage:
     python3 repeat_runs.py                    # all files, runs of length >= 2
@@ -195,7 +195,7 @@ def main():
     ap.add_argument("--out-dir", default="output/repeat_runs",
                     help="folder for the table images "
                          "(default: output/repeat_runs)")
-    ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"])
+    ap.add_argument("--formats", nargs="+", default=["png"])
     ap.add_argument("--dpi", type=int, default=300)
     args = ap.parse_args()
 

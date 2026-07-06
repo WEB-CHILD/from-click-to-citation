@@ -12,7 +12,7 @@ This is the click-based counterpart of query_click_timeline.py and reuses its
 plotting code.
 
 Output: one file per participant in output/click_timeline/ (e.g.
-output/click_timeline/P03.{pdf,png,svg}).
+output/click_timeline/P03.png).
 
 Usage:
     python3 click_timeline.py
@@ -32,7 +32,7 @@ def main():
     ap.add_argument("--out-dir", default="output/click_timeline",
                     help="folder for per-participant files "
                          "(default: output/click_timeline)")
-    ap.add_argument("--formats", nargs="+", default=["pdf", "png", "svg"])
+    ap.add_argument("--formats", nargs="+", default=["png"])
     ap.add_argument("--dpi", type=int, default=300)
     args = ap.parse_args()
 
