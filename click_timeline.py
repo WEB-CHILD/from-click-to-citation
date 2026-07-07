@@ -43,8 +43,7 @@ def main():
     print(f"Click-based participants ({len(participants)}): "
           + ", ".join(participants))
 
-    title = ("Click-based group: chronological query ↔ result-click "
-             "↔ playback sequence")
+    title = "Click-based strategy"
     written = plot_individual(sequences, participants, args.out_dir,
                               args.formats, args.dpi, title)
     print(f"Wrote {len(written)} files to {args.out_dir}/")

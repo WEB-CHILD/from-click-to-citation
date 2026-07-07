@@ -202,8 +202,7 @@ def main():
     print(f"Query-based participants ({len(participants)}): "
           + ", ".join(participants))
 
-    title = ("Query-based group: chronological query ↔ result-click "
-             "↔ playback sequence")
+    title = "Query-based strategy"
     written = plot_individual(sequences, participants, args.out_dir,
                               args.formats, args.dpi, title)
     print(f"Wrote {len(written)} files to {args.out_dir}/")
