@@ -89,8 +89,9 @@ for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
 - **`repeat_runs.py`** — finds where the **exact same action repeats
   back-to-back** in a participant's history (same playback link clicked again
   and again, or the same query fired several times in a row). "Identical" means
-  same action *and* same target (the url for a click, or the query string plus
-  its filters). Renders one booktabs-style table image per participant listing
+  same action *and* same target — for a click, both the url *and* the harvest
+  (capture) date must match; for a query, the query string plus its filters.
+  Renders one booktabs-style table image per participant listing
   their runs (longest first), plus a `summary` table ranking everyone's longest
   streak, into `output/repeat_runs/`; needs matplotlib.
 

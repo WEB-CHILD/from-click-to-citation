@@ -46,7 +46,10 @@ def signature(record):
         filters = tuple(record.get("filterQueries") or ())
         return (action, record.get("query", ""), filters)
     if action in (CLICK, PLAYBACK):
-        return (action, record.get("url", ""))
+        # Same target only counts as a repeat when both the url *and* the
+        # harvest (capture) date are identical -- the same page captured on a
+        # different date is a different event.
+        return (action, record.get("url", ""), record.get("date", ""))
     # Fall back to the whole record (minus its position) for unknown actions.
     return (action, tuple(sorted(
         (k, str(v)) for k, v in record.items() if k not in ("action", "number"))))
@@ -62,7 +65,11 @@ def describe(sig):
             label += " — filters: " + ", ".join(filters)
         return action, label
     if action in (CLICK, PLAYBACK):
-        return action, sig[1] or "(no url)"
+        _, url, date = sig
+        label = url or "(no url)"
+        if date:
+            label += f"  ·  captured {date}"
+        return action, label
     return action, str(sig[1])
 
 
@@ -94,7 +101,7 @@ def find_runs(records, min_run):
     return runs
 
 
-def _truncate(text, width=70):
+def _truncate(text, width=95):
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
