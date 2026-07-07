@@ -138,7 +138,7 @@ def print_table(groups, per_file):
     print(line)
 
 
-def render_image(groups, per_file, out_base, formats, dpi):
+def render_image(groups, per_file, out_base, formats, dpi, title=None):
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -156,7 +156,7 @@ def render_image(groups, per_file, out_base, formats, dpi):
     nrows = len(data)
 
     fig_w = 1.0 + 1.4 * ncols
-    fig_h = 0.34 * (nrows + 1.9) + 0.4
+    fig_h = 0.34 * (nrows + 1.9) + (0.7 if title else 0.4)
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     ax.axis("off")
 
@@ -195,6 +195,9 @@ def render_image(groups, per_file, out_base, formats, dpi):
         if r == nrows:  # bottom rule under the whole table
             edges += "B"
         cell.visible_edges = edges
+
+    if title:
+        ax.set_title(title, fontsize=11, fontweight="bold", pad=12)
 
     out_dir = os.path.dirname(out_base)
     if out_dir:

@@ -62,6 +62,22 @@ for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
   python3 grouped_table.py --out figures/groups  # custom image basename/folder
   ```
 
+- **`grouped_table_cleaned.py`** — the same grouped table, but any run of the
+  *exact same action* repeated more than `--max-run` times in a row (default 10)
+  is dropped before counting, then participants are re-classified from the
+  cleaned numbers. This strips out long stretches of one identical event — e.g.
+  the same playback link clicked hundreds of times — that would otherwise swamp
+  the totals. "Exact same action" matches `repeat_runs.py` (same url *and*
+  harvest date for a click, or query string plus filters for a query). Prints
+  the text table and what was removed, and renders `grouped_table_cleaned.png`
+  to [output/](output/); needs matplotlib.
+
+  ```bash
+  python3 grouped_table_cleaned.py               # text + output/grouped_table_cleaned.png
+  python3 grouped_table_cleaned.py --max-run 5   # stricter: drop runs longer than 5
+  python3 grouped_table_cleaned.py --no-image    # text only
+  ```
+
 - **`query_click_timeline.py`** — for each participant in the query-based group,
   a chronological panel of their `query`, `search result clicked` and `playback
   link clicked` events (entry number on the x-axis, the three action types on
