@@ -4,9 +4,9 @@
 This is the same two-group table as grouped_table.py, but before the actions
 are counted, any run of the *exact same action* repeated more than --max-run
 times in a row is dropped entirely. Some histories contain long stretches of
-one identical event -- the same playback link (same url *and* harvest date) or
-the same query fired again and again, e.g. one participant clicks the same page
-359 times in a row -- which swamps the totals. Removing those runs shows the
+one identical event -- the same page (same url *and* harvest date) or the same
+query again and again, e.g. one participant's page reloads itself 229 times
+in a row -- which swamps the totals. Removing those runs shows the
 deliberate browsing underneath the noise.
 
 "Exact same action" matches repeat_runs.py: same url *and* harvest date for a
@@ -24,12 +24,9 @@ Usage:
 """
 
 import argparse
-import glob
-import os
-import sys
 from collections import Counter
 
-from file_summary import MAP_FILE, load_records, load_or_create_mapping
+from file_summary import DEFAULT_FOLDER, load_histories
 from repeat_runs import signature
 from grouped_table import classify, print_table, render_image
 
@@ -66,23 +63,10 @@ def cleaned_counts(folder, max_run):
     (the shape grouped_table's helpers expect); ``removals`` maps participant id
     -> number of entries dropped.
     """
-    paths = sorted(glob.glob(os.path.join(folder, "*.json")))
-    if not paths:
-        raise SystemExit(f"No JSON files found in {folder!r}")
-
-    by_name = {}
-    for path in paths:
-        try:
-            by_name[os.path.basename(path)] = load_records(path)
-        except (ValueError, OSError) as exc:
-            print(f"  ! skipping {os.path.basename(path)}: {exc}", file=sys.stderr)
-
-    mapping = load_or_create_mapping(by_name.keys(), MAP_FILE)
     per_file = {}
     removals = {}
-    for name, records in by_name.items():
+    for pid, records in load_histories(folder).items():
         kept, removed = clean_records(records, max_run)
-        pid = mapping[name]
         per_file[pid] = Counter(r.get("action", "(none)") for r in kept)
         removals[pid] = removed
     return per_file, removals
@@ -92,7 +76,7 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", nargs="?", default="navigation_histories")
+    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER)
     ap.add_argument("--max-run", type=int, default=10,
                     help="drop runs of the same action longer than this "
                          "(default: 10)")

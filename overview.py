@@ -2,18 +2,18 @@
 """Overview tool for navigation-history JSON files.
 
 Each file is a JSON array of event records produced while browsing a web
-archive (SolrWayback). Records share a ``number`` and ``action`` and, depending
-on the action, carry extra fields:
+archive (SolrWayback), in the format described in anonymised/README.md.
+Records share a ``number``, ``action`` and ``timestamp`` (time of day) and,
+depending on the action, carry extra fields:
 
-    query                  -> query [, facets, filterQueries]
-    search result clicked  -> date, url, archivedUrl
-    playback link clicked  -> date, url, archivedUrl
+    QUERY                  -> query [, facets, filterQueries], tab
+    every page action      -> date, url, archivedUrl [, from, tab]
 
 Usage:
-    python3 overview.py navigation_histories/markus_nissen.json
-    python3 overview.py navigation_histories/            # all *.json in a dir
-    python3 overview.py navigation_histories/*.json      # shell glob
-    python3 overview.py navigation_histories/ --top 20   # show more queries/domains
+    python3 overview.py                            # all of anonymised/
+    python3 overview.py anonymised/P08.json
+    python3 overview.py anonymised/*.json          # shell glob
+    python3 overview.py anonymised/ --top 20       # show more queries/domains
 """
 
 import argparse
@@ -24,6 +24,8 @@ import sys
 from collections import Counter
 from datetime import datetime
 from urllib.parse import urlparse
+
+from file_summary import DEFAULT_FOLDER, QUERY
 
 
 def load_records(path):
@@ -61,7 +63,8 @@ def summarize(path, top):
         return None
 
     actions = Counter(r.get("action") for r in records)
-    queries = [r.get("query") for r in records if r.get("action") == "query"]
+    queries = [r.get("query") for r in records if r.get("action") == QUERY]
+    times = sorted(r["timestamp"] for r in records if r.get("timestamp"))
     faceted = sum(1 for r in records if r.get("filterQueries"))
 
     dates = [d for d in (parse_date(r.get("date")) for r in records) if d]
@@ -70,8 +73,10 @@ def summarize(path, top):
     print(f"=== {os.path.basename(path)} ===")
     print(f"  records         : {len(records)}")
     for action, count in actions.most_common():
-        print(f"    - {action:<22}: {count}")
+        print(f"    - {action:<26}: {count}")
 
+    if times:
+        print(f"  session (UTC)   : {times[0]}  ->  {times[-1]}")
     if dates:
         span = f"{min(dates).date()}  ->  {max(dates).date()}"
         print(f"  archived date range : {span}")
@@ -110,8 +115,9 @@ def collect_paths(args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("paths", nargs="+",
-                    help="JSON file(s) or a directory of JSON files")
+    ap.add_argument("paths", nargs="*", default=[DEFAULT_FOLDER],
+                    help="JSON file(s) or a directory of JSON files "
+                         f"(default: {DEFAULT_FOLDER}/)")
     ap.add_argument("--top", type=int, default=10,
                     help="how many top queries/domains to show (default 10)")
     args = ap.parse_args()
@@ -138,7 +144,7 @@ def main():
         print(f"  records : {totals.pop('records', 0)}")
         totals.pop("queries", None)
         for action, count in totals.most_common():
-            print(f"    - {action:<22}: {count}")
+            print(f"    - {action:<26}: {count}")
         if all_dates:
             print(f"  overall date range : {min(all_dates).date()}"
                   f"  ->  {max(all_dates).date()}")

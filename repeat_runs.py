@@ -3,16 +3,16 @@
 
 For every ``*.json`` file this walks the participant's entries in chronological
 order and looks for runs where the identical event repeats back-to-back -- e.g.
-the same playback link clicked again and again, or the same query fired several
-times in a row. "Identical" means same action *and* same target: the url for a
-``search result clicked`` / ``playback link clicked``, or the query string plus
-its filters for a ``query``.
+the same page reloading itself again and again, or the same query fired several
+times in a row. "Identical" means same action *and* same target: the url and
+capture date for any page action (a result, link, toolbar click, failed
+playback and so on), or the query string plus its filters for a ``QUERY``.
 
 It renders booktabs-style table images into output/repeat_runs/: one table per
 participant listing their runs of length >= --min-run (longest first), plus a
 ``summary`` table of everyone's longest run. Each is saved as a PNG (pass
---formats for vector PDF/SVG instead). Files are anonymised through
-participant_map.json (the same P01, P02, ... ids the other scripts use).
+--formats for vector PDF/SVG instead). Participants keep the P01, P02, ... ids
+of the anonymised files.
 
 Output: output/repeat_runs/{P01,...}.png and
         output/repeat_runs/summary.png
@@ -25,15 +25,12 @@ Usage:
 """
 
 import argparse
-import glob
 import os
-import sys
 
-from file_summary import MAP_FILE, load_records, load_or_create_mapping
+from file_summary import DEFAULT_FOLDER, QUERY, load_histories
 
-QUERY = "query"
-CLICK = "search result clicked"
-PLAYBACK = "playback link clicked"
+# Where an entry sits in the history, not what it did.
+POSITION_FIELDS = ("action", "number", "timestamp", "from", "tab")
 
 
 def signature(record):
@@ -45,14 +42,14 @@ def signature(record):
     if action == QUERY:
         filters = tuple(record.get("filterQueries") or ())
         return (action, record.get("query", ""), filters)
-    if action in (CLICK, PLAYBACK):
+    if "url" in record:
         # Same target only counts as a repeat when both the url *and* the
         # harvest (capture) date are identical -- the same page captured on a
         # different date is a different event.
         return (action, record.get("url", ""), record.get("date", ""))
     # Fall back to the whole record (minus its position) for unknown actions.
     return (action, tuple(sorted(
-        (k, str(v)) for k, v in record.items() if k not in ("action", "number"))))
+        (k, str(v)) for k, v in record.items() if k not in POSITION_FIELDS)))
 
 
 def describe(sig):
@@ -64,7 +61,7 @@ def describe(sig):
         if filters:
             label += " — filters: " + ", ".join(filters)
         return action, label
-    if action in (CLICK, PLAYBACK):
+    if len(sig) == 3:
         _, url, date = sig
         label = url or "(no url)"
         if date:
@@ -196,7 +193,7 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", nargs="?", default="navigation_histories")
+    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER)
     ap.add_argument("--min-run", type=int, default=2,
                     help="smallest run length to report (default: 2)")
     ap.add_argument("--out-dir", default="output/repeat_runs",
@@ -206,19 +203,7 @@ def main():
     ap.add_argument("--dpi", type=int, default=300)
     args = ap.parse_args()
 
-    paths = sorted(glob.glob(os.path.join(args.folder, "*.json")))
-    if not paths:
-        raise SystemExit(f"No JSON files found in {args.folder!r}")
-
-    by_name = {}
-    for path in paths:
-        try:
-            by_name[os.path.basename(path)] = load_records(path)
-        except (ValueError, OSError) as exc:
-            print(f"  ! skipping {os.path.basename(path)}: {exc}", file=sys.stderr)
-
-    mapping = load_or_create_mapping(by_name.keys(), MAP_FILE)
-    per_participant = sorted((mapping[name], recs) for name, recs in by_name.items())
+    per_participant = sorted(load_histories(args.folder).items())
 
     os.makedirs(args.out_dir, exist_ok=True)
     summary = []

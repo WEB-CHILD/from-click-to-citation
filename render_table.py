@@ -7,7 +7,7 @@ matplotlib. Saves a high-DPI PNG (pass --formats for vector PDF/SVG instead).
 
 Usage:
     python3 render_table.py                         # -> output/table.png
-    python3 render_table.py navigation_histories    # explicit folder
+    python3 render_table.py anonymised              # explicit folder
     python3 render_table.py --out figures/summary   # custom basename/folder
     python3 render_table.py --formats pdf png svg    # choose output formats
 
@@ -22,17 +22,24 @@ import matplotlib
 matplotlib.use("Agg")  # no display needed; just write files
 import matplotlib.pyplot as plt
 
-from file_summary import compute_table
+from file_summary import (DEFAULT_FOLDER, QUERY, RESULT, LINK, TOOLBAR, AUTO,
+                          HISTORY, RELOAD, OTHER, FAILED, compute_table)
 
 # Nicer, shorter column titles for the figure than the raw action strings.
 PRETTY = {
     "participant": "Participant",
     "total": "Total",
-    "query": "Queries",
-    "search result clicked": "Search result\nclicks",
-    "playback link clicked": "Playback\nclicks",
+    QUERY: "Queries",
+    RESULT: "Result\nclicks",
+    LINK: "Link\nclicks",
+    TOOLBAR: "Toolbar\nclicks",
+    AUTO: "Automatic\nnavigation",
+    HISTORY: "Back /\nforward",
+    RELOAD: "Reloads",
+    OTHER: "Other\nnavigation",
+    FAILED: "Failed\nplayback",
     "query/click": "Queries /\nresult click",
-    "playback/click": "Playbacks /\nresult click",
+    "link/click": "Links /\nresult click",
 }
 
 
@@ -46,7 +53,7 @@ def render(table, out_base, formats, dpi):
     nrows = len(data)
 
     # Figure size scales with the table; tuned for a single-column-ish figure.
-    fig_w = 1.0 + 1.4 * ncols  # extra width so columns don't crowd each other
+    fig_w = 1.0 + 1.1 * ncols  # extra width so columns don't crowd each other
     fig_h = 0.34 * (nrows + 1.9) + 0.4  # +0.9 extra for the two-line header
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     ax.axis("off")
@@ -101,8 +108,8 @@ def render(table, out_base, formats, dpi):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", nargs="?", default="navigation_histories",
-                    help="folder of JSON files (default: navigation_histories)")
+    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER,
+                    help=f"folder of JSON files (default: {DEFAULT_FOLDER})")
     ap.add_argument("--out", default="output/table",
                     help="output basename without extension "
                          "(default: output/table)")

@@ -1,24 +1,45 @@
 #!/usr/bin/env python3
-"""Per-file overview of the navigation_histories JSON files.
+"""Per-file overview of the anonymised navigation histories.
 
 For every *.json file in the target folder, prints how many entries the file
 has and how those entries break down by action type. Ends with totals plus
 per-category average and median values across the files.
 
+The histories are in the SolrWayback export format of pull request 11 (see
+anonymised/README.md): upper-case action names and a ``timestamp``, ``from``
+and ``tab`` on each entry. The action constants below are shared by the other
+scripts.
+
 Usage:
-    python3 file_summary.py                       # defaults to navigation_histories/
+    python3 file_summary.py                       # defaults to anonymised/
     python3 file_summary.py path/to/folder
 """
 
 import glob
 import json
 import os
+import re
 import statistics
 import sys
 from collections import Counter
 
 
 MAP_FILE = "participant_map.json"
+DEFAULT_FOLDER = "anonymised"
+
+QUERY = "QUERY"
+RESULT = "SEARCH_RESULT_CLICKED"
+LINK = "PLAYBACK_LINK_CLICKED"
+TOOLBAR = "TOOLBAR_LINK_CLICKED"
+AUTO = "PLAYBACK_NAVIGATION"
+HISTORY = "BROWSER_HISTORY_NAVIGATION"
+RELOAD = "PAGE_RELOADED"
+OTHER = "OTHER_NAVIGATION"
+FAILED = "PLAYBACK_FAILED"
+
+# Table and legend order: searching, then the ways a page can be reached, then
+# links that led nowhere.
+ACTIONS = [QUERY, RESULT, LINK, TOOLBAR, AUTO, HISTORY, RELOAD, OTHER, FAILED]
 
 
 def load_records(path):
@@ -27,6 +48,31 @@ def load_records(path):
     if not isinstance(data, list):
         raise ValueError("not a JSON array")
     return [r for r in data if isinstance(r, dict)]
+
+
+def load_histories(folder=DEFAULT_FOLDER):
+    """Return ``{participant id: records in entry order}`` for a folder.
+
+    Files already named by participant id (``P01.json``, as in anonymised/)
+    keep that id; any other filename goes through participant_map.json.
+    """
+    paths = sorted(glob.glob(os.path.join(folder, "*.json")))
+    if not paths:
+        raise SystemExit(f"No JSON files found in {folder!r}")
+
+    by_name = {}
+    for path in paths:
+        try:
+            by_name[os.path.basename(path)] = load_records(path)
+        except (json.JSONDecodeError, ValueError, OSError) as exc:
+            print(f"  ! skipping {os.path.basename(path)}: {exc}", file=sys.stderr)
+
+    named = {n: n[:-5] for n in by_name if re.fullmatch(r"P\d+\.json", n)}
+    others = [n for n in by_name if n not in named]
+    if others:
+        named.update(load_or_create_mapping(others, MAP_FILE))
+    return {named[n]: sorted(recs, key=lambda r: r.get("number", 0))
+            for n, recs in sorted(by_name.items(), key=lambda kv: named[kv[0]])}
 
 
 def load_or_create_mapping(filenames, map_path):
@@ -65,44 +111,22 @@ def fmt_ratio(numerator, clicks):
     return f"{numerator / clicks:.2f}"
 
 
-def gather_counts(folder="navigation_histories"):
-    """Load every JSON file and return anonymised per-participant action counts.
+def gather_counts(folder=DEFAULT_FOLDER):
+    """Load every JSON file and return per-participant action counts.
 
     Returns ``(per_participant, action_types)`` where ``per_participant`` maps a
     participant id (P01, ...) to a Counter of action -> count, and
     ``action_types`` is the ordered list of action names seen.
     """
-    paths = sorted(glob.glob(os.path.join(folder, "*.json")))
-    if not paths:
-        raise SystemExit(f"No JSON files found in {folder!r}")
-
-    # Discover every action type so the table has consistent columns.
-    per_file = {}
-    action_types = []
-    for path in paths:
-        try:
-            records = load_records(path)
-        except (json.JSONDecodeError, ValueError, OSError) as exc:
-            print(f"  ! skipping {os.path.basename(path)}: {exc}", file=sys.stderr)
-            continue
-        counts = Counter(r.get("action", "(none)") for r in records)
-        per_file[os.path.basename(path)] = counts
-        for action in counts:
-            if action not in action_types:
-                action_types.append(action)
-
-    # Anonymise: map each filename to a stable participant id (P01, P02, ...).
-    mapping = load_or_create_mapping(per_file.keys(), MAP_FILE)
-    per_file = {mapping[name]: counts for name, counts in per_file.items()}
-
-    preferred = ["query", "search result clicked", "playback link clicked"]
-    action_types.sort(
-        key=lambda a: (preferred.index(a) if a in preferred else len(preferred), a)
-    )
+    per_file = {pid: Counter(r.get("action", "(none)") for r in records)
+                for pid, records in load_histories(folder).items()}
+    seen = set().union(*per_file.values())
+    action_types = sorted(
+        seen, key=lambda a: (ACTIONS.index(a) if a in ACTIONS else len(ACTIONS), a))
     return per_file, action_types
 
 
-def compute_table(folder="navigation_histories"):
+def compute_table(folder=DEFAULT_FOLDER):
     """Build the anonymised summary table.
 
     Returns a dict with:
@@ -112,7 +136,7 @@ def compute_table(folder="navigation_histories"):
     so the same numbers can be printed as text or rendered as an image.
     """
     per_file, action_types = gather_counts(folder)
-    ratio_labels = ["query/click", "playback/click"]
+    ratio_labels = ["query/click", "link/click"]
     headers = ["participant", "total"] + action_types + ratio_labels
 
     totals = Counter()
@@ -129,12 +153,12 @@ def compute_table(folder="navigation_histories"):
         series["total"].append(total)
         for a in action_types:
             series[a].append(counts.get(a, 0))
-        queries = counts.get("query", 0)
-        playbacks = counts.get("playback link clicked", 0)
-        clicks = counts.get("search result clicked", 0)
+        queries = counts.get(QUERY, 0)
+        playbacks = counts.get(LINK, 0)
+        clicks = counts.get(RESULT, 0)
         if clicks:
             ratio_series["query/click"].append(queries / clicks)
-            ratio_series["playback/click"].append(playbacks / clicks)
+            ratio_series["link/click"].append(playbacks / clicks)
         row = [name, str(total)]
         row += [str(counts.get(a, 0)) for a in action_types]
         row += [fmt_ratio(queries, clicks), fmt_ratio(playbacks, clicks)]
@@ -148,9 +172,9 @@ def compute_table(folder="navigation_histories"):
             out.append(ratio_fn(vals) if vals else "n/a")
         return out
 
-    total_q = totals.get("query", 0)
-    total_pb = totals.get("playback link clicked", 0)
-    total_clicks = totals.get("search result clicked", 0)
+    total_q = totals.get(QUERY, 0)
+    total_pb = totals.get(LINK, 0)
+    total_clicks = totals.get(RESULT, 0)
     total_out = ["TOTAL", str(grand_total)]
     total_out += [str(totals.get(a, 0)) for a in action_types]
     total_out += [fmt_ratio(total_q, total_clicks),
@@ -193,7 +217,7 @@ def print_table(table):
 
 
 def main():
-    folder = sys.argv[1] if len(sys.argv) > 1 else "navigation_histories"
+    folder = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_FOLDER
     print_table(compute_table(folder))
 
 

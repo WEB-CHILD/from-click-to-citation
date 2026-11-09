@@ -3,11 +3,12 @@
 
 Each participant is classified from their raw action counts:
 
-  * query-based  : more queries than playback-link clicks
-  * click-based  : more playback-link clicks than queries
+  * query-based  : more queries than link clicks (PLAYBACK_LINK_CLICKED)
+  * click-based  : more link clicks than queries
   * (balanced)   : exactly equal -- listed separately, if any
 
-The table lists the participants in each group with their counts and the two
+The table lists the participants in each group with their counts (including
+failed playbacks: links to pages that were never harvested) and the two
 per-search-result-click ratios, plus a per-group mean row. It prints as text and
 (if matplotlib is available) renders a publication-quality image to output/.
 
@@ -23,19 +24,21 @@ import os
 import statistics
 import sys
 
-from file_summary import gather_counts, fmt_ratio
+from file_summary import (DEFAULT_FOLDER, QUERY, RESULT, LINK, FAILED,
+                          gather_counts, fmt_ratio)
 
-COLUMNS = ["participant", "total", "query", "search result clicked",
-           "playback link clicked", "query/click", "playback/click"]
+COLUMNS = ["participant", "total", QUERY, RESULT, LINK, FAILED,
+           "query/click", "link/click"]
 
 PRETTY = {
     "participant": "Participant",
     "total": "Total",
-    "query": "Queries",
-    "search result clicked": "Search result\nclicks",
-    "playback link clicked": "Playback\nclicks",
+    QUERY: "Queries",
+    RESULT: "Search result\nclicks",
+    LINK: "Link\nclicks",
+    FAILED: "Failed\nplayback",
     "query/click": "Queries /\nresult click",
-    "playback/click": "Playbacks /\nresult click",
+    "link/click": "Links /\nresult click",
 }
 
 
@@ -44,8 +47,8 @@ def classify(per_file):
     query_based, click_based, balanced = [], [], []
     for pid in sorted(per_file):
         counts = per_file[pid]
-        queries = counts.get("query", 0)
-        playbacks = counts.get("playback link clicked", 0)
+        queries = counts.get(QUERY, 0)
+        playbacks = counts.get(LINK, 0)
         if queries > playbacks:
             query_based.append(pid)
         elif playbacks > queries:
@@ -63,15 +66,16 @@ def classify(per_file):
 
 
 def data_cells(pid, counts):
-    queries = counts.get("query", 0)
-    playbacks = counts.get("playback link clicked", 0)
-    clicks = counts.get("search result clicked", 0)
+    queries = counts.get(QUERY, 0)
+    playbacks = counts.get(LINK, 0)
+    clicks = counts.get(RESULT, 0)
     return [
         pid,
         str(sum(counts.values())),
         str(queries),
         str(clicks),
         str(playbacks),
+        str(counts.get(FAILED, 0)),
         fmt_ratio(queries, clicks),
         fmt_ratio(playbacks, clicks),
     ]
@@ -85,17 +89,18 @@ def stat_cells(label, members, per_file, fn):
     totals = [sum(per_file[p].values()) for p in members]
     ratios_q, ratios_p = [], []
     for p in members:
-        clicks = per_file[p].get("search result clicked", 0)
+        clicks = per_file[p].get(RESULT, 0)
         if clicks:
-            ratios_q.append(per_file[p].get("query", 0) / clicks)
-            ratios_p.append(per_file[p].get("playback link clicked", 0) / clicks)
+            ratios_q.append(per_file[p].get(QUERY, 0) / clicks)
+            ratios_p.append(per_file[p].get(LINK, 0) / clicks)
 
     return [
         f"{label} (n={len(members)})",
         f"{fn(totals):.1f}",
-        f"{col('query'):.1f}",
-        f"{col('search result clicked'):.1f}",
-        f"{col('playback link clicked'):.1f}",
+        f"{col(QUERY):.1f}",
+        f"{col(RESULT):.1f}",
+        f"{col(LINK):.1f}",
+        f"{col(FAILED):.1f}",
         f"{fn(ratios_q):.2f}" if ratios_q else "n/a",
         f"{fn(ratios_p):.2f}" if ratios_p else "n/a",
     ]
@@ -215,8 +220,8 @@ def render_image(groups, per_file, out_base, formats, dpi, title=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", nargs="?", default="navigation_histories",
-                    help="folder of JSON files (default: navigation_histories)")
+    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER,
+                    help=f"folder of JSON files (default: {DEFAULT_FOLDER})")
     ap.add_argument("--out", default="output/grouped_table",
                     help="image basename without extension "
                          "(default: output/grouped_table)")

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Chronological action timeline for the click-based group.
 
-The click-based group is every participant with more playback-link clicks than
-queries. For each of them this draws one panel showing their history in order:
-each ``query``, ``search result clicked`` and ``playback link clicked`` event is
-placed at its entry number on the x-axis and at one of three y-levels, connected
-by a line and coloured by action type -- so you can read the back-and-forth
-between searching, clicking results, and following playback links.
+The click-based group is every participant with more link clicks than queries.
+For each of them this draws one panel showing their history in order: every
+entry is placed at its entry number on the x-axis and at one of five y-levels
+(query, search result click, link click, failed playback, other navigation),
+connected by a line and coloured by level -- so you can read the back-and-forth
+between searching, clicking results, and following links.
 
 This is the click-based counterpart of query_click_timeline.py and reuses its
 plotting code.
@@ -22,13 +22,14 @@ Usage:
 
 import argparse
 
+from file_summary import DEFAULT_FOLDER
 from query_click_timeline import gather_sequences, click_based, plot_individual
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("folder", nargs="?", default="navigation_histories")
+    ap.add_argument("folder", nargs="?", default=DEFAULT_FOLDER)
     ap.add_argument("--out-dir", default="output/click_timeline",
                     help="folder for per-participant files "
                          "(default: output/click_timeline)")

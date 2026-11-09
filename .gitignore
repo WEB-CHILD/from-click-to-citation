@@ -7,3 +7,18 @@ participant_map.json
 # Rendered per-participant Markdown histories (derived from private data)
 output/markdown/
 output/repeat_runs/
+
+# SolrWayback server logs (IPs, full URLs)
+logs/
+
+# Corrected copy of the raw histories (contain real names / private data)
+navigation_histories_corrected/
+
+# Maps the pseudonyms in anonymised/ back to the real hosts, paths and search terms
+anonymisation_key.json
+
+# Contains the real archive address
+correct_histories.py
+
+# The anonymised dataset (only code is kept in git)
+anonymised/
