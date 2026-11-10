@@ -32,8 +32,11 @@ ids through `participant_map.json` instead.
 Generated files land in [output/](output/): the two summary tables write
 `table.png` and `grouped_table.png` directly, while the per-participant scripts
 each write into their own sub-folder (`query_click_timeline/`, `click_timeline/`,
-`repeat_runs/`, `markdown/`). Image scripts default to **PNG**; pass `--formats`
-for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
+`repeat_runs/`, `markdown/`, `side_by_side/`). Image scripts default to **PNG**;
+pass `--formats` for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/`
+are gitignored. The three figures used in the article are also copied to
+`output/figures_in_article/`, each named after its title, whenever their scripts
+run with default settings.
 
 ## The scripts
 
@@ -88,7 +91,7 @@ for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
   the totals. "Exact same action" matches `repeat_runs.py` (same url *and*
   harvest date for a click, or query string plus filters for a query). Prints
   the text table and what was removed, and renders `grouped_table_cleaned.png`
-  to [output/](output/); needs matplotlib.
+  to [output/](output/), which is Figure 1 of the article; needs matplotlib.
 
   ```bash
   python3 grouped_table_cleaned.py               # text + output/grouped_table_cleaned.png
@@ -119,6 +122,18 @@ for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
   python3 click_timeline.py --out-dir figures/clicks
   ```
 
+- **`side_by_side.py`** — places two timeline images next to each other in one
+  image, without rescaling them, under a "Figure 2" title (change it with
+  `--title`). Paths can be given relative to `output/`. Writes to
+  `output/side_by_side/` unless `--out` is given; needs matplotlib.
+
+  ```bash
+  python3 side_by_side.py     # query_click_timeline/P04.png and click_timeline/P02.png
+  python3 side_by_side.py click_timeline/P02.png click_timeline/P08.png
+  python3 side_by_side.py LEFT RIGHT --out figures/comparison.png --gap 120
+  python3 side_by_side.py LEFT RIGHT --title ""   # no title
+  ```
+
 - **`repeat_runs.py`** — finds where the **exact same action repeats
   back-to-back** in a participant's history (the same page reloading itself
   again and again, or the same query fired several times in a row). "Identical"
@@ -139,7 +154,8 @@ for vector PDF/SVG. `output/markdown/` and `output/repeat_runs/` are gitignored.
   in it is a step, measured from the capture date of the page the link was on
   (its `from` entry). Toolbar clicks and failed playbacks are counted
   separately. Prints a per-participant summary, with `--detail` every chain step
-  by step, and with `--png` the summary as an image. Archived URLs appear as
+  by step, and with `--png` the summary as an image (Figure 3 of the article).
+  Archived URLs appear as
   per-participant `site N · page M` labels.
 
   ```bash

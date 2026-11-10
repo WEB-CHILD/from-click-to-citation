@@ -21,11 +21,15 @@ Usage:
 
 import argparse
 import os
+import re
+import shutil
 import statistics
 import sys
 
 from file_summary import (DEFAULT_FOLDER, QUERY, RESULT, LINK, FAILED,
                           gather_counts, fmt_ratio)
+
+ARTICLE_DIR = os.path.join("output", "figures_in_article")
 
 COLUMNS = ["participant", "total", QUERY, RESULT, LINK, FAILED,
            "query/click", "link/click"]
@@ -143,6 +147,47 @@ def print_table(groups, per_file):
     print(line)
 
 
+def copy_to_article(path, title):
+    """Copy the figure at ``path`` to the article folder; return the new path.
+
+    The copy is named after ``title``, with spaces as underscores. Punctuation
+    is dropped because colons are not valid in filenames on every system and
+    apostrophes need quoting in a shell.
+    """
+    name = re.sub(r"[^\w ]", "", title).replace(" ", "_")
+    target = os.path.join(ARTICLE_DIR, name + os.path.splitext(path)[1])
+    os.makedirs(ARTICLE_DIR, exist_ok=True)
+    shutil.copyfile(path, target)
+    return target
+
+
+def seat_title(fig, ax, tbl, title, note=None):
+    """Put ``title`` directly above table ``tbl``; return the box to save.
+
+    The table is centred in the axes, so a default title (top of axes) floats
+    well above it. This seats the title on the table's top edge, adds the
+    optional ``note`` under the table, and returns a crop around them for
+    ``bbox_inches``, since "tight" would keep the axes' empty margins.
+    """
+    from matplotlib.transforms import Bbox
+
+    renderer = fig.canvas.get_renderer()
+    table_box = tbl.get_window_extent(renderer)
+    table_top = ax.transAxes.inverted().transform((0, table_box.y1))[1]
+    label = ax.set_title(title, fontsize=11, fontweight="bold",
+                         y=table_top, pad=6)
+    boxes = [table_box, label.get_window_extent(renderer)]
+    if note:
+        corner = ax.transAxes.inverted().transform((table_box.x0, table_box.y0))
+        text = ax.annotate(note, xy=corner, xycoords="axes fraction",
+                           xytext=(0, -6), textcoords="offset points",
+                           fontsize=9, ha="left", va="top")
+        boxes.append(text.get_window_extent(renderer))
+    return (Bbox.union(boxes)
+            .transformed(fig.dpi_scale_trans.inverted())
+            .padded(0.05))
+
+
 def render_image(groups, per_file, out_base, formats, dpi, title=None):
     try:
         import matplotlib
@@ -201,8 +246,7 @@ def render_image(groups, per_file, out_base, formats, dpi, title=None):
             edges += "B"
         cell.visible_edges = edges
 
-    if title:
-        ax.set_title(title, fontsize=11, fontweight="bold", pad=12)
+    crop = seat_title(fig, ax, tbl, title) if title else "tight"
 
     out_dir = os.path.dirname(out_base)
     if out_dir:
@@ -210,7 +254,7 @@ def render_image(groups, per_file, out_base, formats, dpi, title=None):
     written = []
     for fmt in formats:
         path = f"{out_base}.{fmt}"
-        fig.savefig(path, dpi=dpi, bbox_inches="tight",
+        fig.savefig(path, dpi=dpi, bbox_inches=crop,
                     facecolor="white", pad_inches=0.05)
         written.append(path)
     plt.close(fig)

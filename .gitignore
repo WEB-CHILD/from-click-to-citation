@@ -22,3 +22,9 @@ correct_histories.py
 
 # The anonymised dataset (only code is kept in git)
 anonymised/
+
+# Python bytecode (a compiled correct_histories would expose the archive address)
+__pycache__/
+
+# macOS Finder settings
+.DS_Store

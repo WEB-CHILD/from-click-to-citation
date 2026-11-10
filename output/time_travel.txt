@@ -7,7 +7,7 @@ Participant  Chains  w/steps  Longest  Steps  Same page  Back  Fwd  Same  Toolba
 P01              17        1        1      1          0     1    0     0        0       2     121d 14h  121d 14h   -121d 14h
 P02              28       19        7     65          0    24   41     0        0       5       1h 35m   278d 4h   +277d 20h
 P03              26        4        3      7          0     3    4     0        2       2       1d 11h   23d 11h        +12s
-P04              33       12        7     25          1    14   11     0        0      18      33d 23h   1y 171d     -13d 4h
+P04              33       12        7     25          1    14   11     0        0      19      33d 23h   1y 171d     -13d 4h
 P05              25        5        4     12          6     9    3     0        0       0        4d 4h   174d 1h     -1d 20h
 P06              37        0        0      0          0     0    0     0        2       7          n/a       n/a         n/a
 P07              25        9        9     33          6    18   14     1        2      12       4d 17h   1y 195d        -33m

@@ -14,7 +14,8 @@ click, or the query string plus its filters for a query. Participants are then
 re-classified (query- vs click-based) from the cleaned counts, so a history that
 was only "click-based" because of a stuck playback loop can move groups.
 
-Output: output/grouped_table_cleaned.png  (needs matplotlib)
+Output: output/grouped_table_cleaned.png, and for a run with the default folder,
+--max-run and --out a copy in output/figures_in_article/  (needs matplotlib)
 
 Usage:
     python3 grouped_table_cleaned.py
@@ -28,7 +29,9 @@ from collections import Counter
 
 from file_summary import DEFAULT_FOLDER, load_histories
 from repeat_runs import signature
-from grouped_table import classify, print_table, render_image
+from grouped_table import classify, copy_to_article, print_table, render_image
+
+TITLE = "Figure 1: Grouped Summary of participants' actions"
 
 
 def clean_records(records, max_run):
@@ -99,10 +102,12 @@ def main():
              if dropped else " (none found)"))
 
     if not args.no_image:
-        title = (f"Grouped summary — runs of >{args.max_run} identical "
-                 "actions removed")
         written = render_image(groups, per_file, args.out, args.formats,
-                               args.dpi, title=title)
+                               args.dpi, title=TITLE)
+        # Only the figure from the default settings goes to the article folder.
+        if all(getattr(args, name) == ap.get_default(name)
+               for name in ("folder", "max_run", "out")):
+            written += [copy_to_article(path, TITLE) for path in written]
         if written:
             print("Wrote: " + ", ".join(written))
 

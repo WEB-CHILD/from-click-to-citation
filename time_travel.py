@@ -45,7 +45,7 @@ Usage:
     python3 time_travel.py --detail --only P03   # just one participant
     python3 time_travel.py --min-steps 2         # skip one-hop chains in detail
     python3 time_travel.py --markdown --out-file output/time_travel.md
-    python3 time_travel.py --png                  # -> output/time_travel_overview.png
+    python3 time_travel.py --png                  # -> output/time_travel_overview.png + article copy
     python3 time_travel.py --png figures/tt.png   # custom path
 """
 
@@ -59,9 +59,11 @@ from urllib.parse import urlsplit
 
 from file_summary import (DEFAULT_FOLDER, RESULT, LINK, TOOLBAR, FAILED,
                           load_histories)
+from grouped_table import copy_to_article, seat_title
 
 DAY = 86400.0
 
+PNG_TITLE = "Figure 3: Overview of how participants travelled through time"
 DEFAULT_PNG = os.path.join("output", "time_travel_overview.png")
 
 
@@ -213,8 +215,13 @@ def analyse_chain(chain):
     return chain
 
 
-def summarise(chains):
-    """Aggregate one participant's chains into a stats dict."""
+def summarise(chains, records):
+    """Aggregate one participant's chains into a stats dict.
+
+    Failed playbacks are counted over all ``records``, not just the chains, so
+    that browsing which did not start at a search result is included and the
+    total matches the participant's action counts elsewhere.
+    """
     values = [r["delta"] for chain in chains for r in chain["rows"]
               if r["counted"]]
     magnitudes = [abs(v) for v in values if v != 0]
@@ -226,7 +233,7 @@ def summarise(chains):
         "steps": len(values),
         "same_page": sum(c["same_page"] for c in chains),
         "toolbar": sum(c["toolbar"] for c in chains),
-        "failed": sum(c["failed"] for c in chains),
+        "failed": sum(1 for r in records if r.get("action") == FAILED),
         "backward": sum(1 for v in values if v < 0),
         "forward": sum(1 for v in values if v > 0),
         "same": sum(1 for v in values if v == 0),
@@ -318,6 +325,19 @@ def render_png(results, path, dpi=300):
             "--png needs matplotlib: pip install matplotlib")
 
     headers, rows, aligns = summary_table(results)
+
+    # The figure leaves out "Same"; the text and Markdown reports keep it. Those
+    # steps still count towards Steps, so a note accounts for the difference.
+    note = None
+    if "Same" in headers:
+        same_col = headers.index("Same")
+        stayed = ", ".join(f"{r[0]}: {r[same_col]}" for r in rows if r[same_col])
+        note = ("Note: Steps also counts links that stayed on the same capture "
+                f"date ({stayed}), so Back + Fwd can be lower than Steps.")
+        headers.pop(same_col)
+        aligns.pop(same_col)
+        rows = [r[:same_col] + r[same_col + 1:] for r in rows]
+
     titles = [PNG_HEADERS.get(x, x) for x in headers]
     body = [[str(c) for c in r] for r in rows]
 
@@ -361,10 +381,12 @@ def render_png(results, path, dpi=300):
             edges += "B"                 # closing rule under the last row
         cell.visible_edges = edges
 
+    crop = seat_title(fig, ax, tbl, PNG_TITLE, note=note)
+
     out_dir = os.path.dirname(path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
-    fig.savefig(path, dpi=dpi, bbox_inches="tight",
+    fig.savefig(path, dpi=dpi, bbox_inches=crop,
                 facecolor="white", pad_inches=0.05)
     plt.close(fig)
     return path
@@ -487,7 +509,7 @@ def main(argv=None):
         if args.only and label not in args.only:
             continue
         chains = [analyse_chain(c) for c in build_chains(records)]
-        results.append((label, summarise(chains)))
+        results.append((label, summarise(chains, records)))
         details.append((label, chains))
 
     if not results:
@@ -508,6 +530,10 @@ def main(argv=None):
 
     if args.png:
         print(f"wrote {render_png(results, args.png, args.dpi)}")
+        # Only the full figure from the default data goes to the article folder.
+        if (args.png == DEFAULT_PNG and args.folder == DEFAULT_FOLDER
+                and not args.only):
+            print(f"wrote {copy_to_article(args.png, PNG_TITLE)}")
 
     text = "\n".join(blocks)
     if args.out_file:
